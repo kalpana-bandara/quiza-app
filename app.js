@@ -1,61 +1,152 @@
-const express = require("express");
+import express from "express";
 const app = express();
-const port = process.env.PORT || 3001;
+import cors from "cors";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
-app.get("/", (req, res) => res.type('html').send(html));
+app.use(express.json());
+app.use(cors());
+app.use(express.urlencoded({ extended: true }));
 
-const server = app.listen(port, () => console.log(`Example app listening on port ${port}!`));
+import mysql from "mysql2";
 
-server.keepAliveTimeout = 120 * 1000;
-server.headersTimeout = 120 * 1000;
+// Secret key for JWT
+const JWT_SECRET = "your_secret_key"; // Replace with your secret key
 
-const html = `
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Hello from Render!</title>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-    <script>
-      setTimeout(() => {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          disableForReducedMotion: true
-        });
-      }, 500);
-    </script>
-    <style>
-      @import url("https://p.typekit.net/p.css?s=1&k=vnd5zic&ht=tk&f=39475.39476.39477.39478.39479.39480.39481.39482&a=18673890&app=typekit&e=css");
-      @font-face {
-        font-family: "neo-sans";
-        src: url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff2"), url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff"), url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("opentype");
-        font-style: normal;
-        font-weight: 700;
+// connecting Database
+const connection = mysql.createPool({
+  host: "sql6.freesqldatabase.com",
+  user: "sql6704057",
+  password: "NEdMXYQthm",
+  database: "sql6704057",
+});
+
+// Hash a password using SHA-256
+const hashPassword = (password) => {
+  const hash = crypto.createHash("sha256");
+  hash.update(password);
+  return hash.digest("hex");
+};
+
+// Generate JWT token
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "5h" });
+};
+
+// Middleware to verify JWT token
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization && req.headers.authorization.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
+    if (err) {
+      return res.json({ message: "token expired" });
+    }
+    req.userId = decoded.userId;
+    const query = `SELECT * from users WHERE id = ${req.userId}`;
+    try {
+      const data = await connection.promise().query(query);
+      const username = data[0][0].username;
+      const trimmedEmail = data[0][0].email;
+      const hash = crypto.createHash("sha256").update(trimmedEmail).digest("hex");
+
+      if (data[0].length === 0) {
+        return res.status(400).json({ message: "Invalid userId" });
       }
-      html {
-        font-family: neo-sans;
-        font-weight: 700;
-        font-size: calc(62rem / 16);
-      }
-      body {
-        background: white;
-      }
-      section {
-        border-radius: 1em;
-        padding: 1em;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        margin-right: -50%;
-        transform: translate(-50%, -50%);
-      }
-    </style>
-  </head>
-  <body>
-    <section>
-      Hello from Render!
-    </section>
-  </body>
-</html>
-`
+
+      res.status(202).json({ username: username, image: hash });
+    } catch (err) {
+      res.status(500).json({ message: err });
+    }
+    next();
+  });
+};
+
+app.post("/login", async (req, res) => {
+  const postData = req.body;
+  const usernamee = postData.username;
+  const password = postData.password;
+
+  // Hash the provided password
+  const hashedPassword = hashPassword(password);
+
+  const query = `SELECT id,email,username from users WHERE username = ? AND password = ?`;
+
+  try {
+    const data = await connection.promise().query(query, [usernamee, hashedPassword]);
+
+    if (data[0].length === 0) {
+      return res.status(400).json({ message: "Invalid username or password" });
+    }
+    const trimmedEmail = data[0][0].email;
+    const hash = crypto.createHash("sha256").update(trimmedEmail).digest("hex");
+
+    const userId = data[0][0].id;
+    const username = data[0][0].username;
+
+    const token = generateToken(userId);
+
+    res.status(202).json({ token: token, username: username, image: hash });
+  } catch (err) {
+    res.status(500).json({ message: err });
+  }
+});
+
+app.post("/create-user", async (req, res) => {
+  const postData = req.body;
+  const username = postData.username;
+  const password = postData.password;
+  const email = postData.email;
+
+  // Hash the provided password
+  const hashedPassword = hashPassword(password);
+
+  const query = `INSERT INTO users (email,username,password) VALUES ('${email}','${username}','${hashedPassword}')`;
+
+  try {
+    await connection.promise().query(query);
+    res.status(202).json({ status: true });
+  } catch (err) {
+    res.status(500).json({ message: err });
+  }
+});
+
+app.post("/get-quiz", async (req, res) => {
+  const id = req.body.id;
+
+  const query = `SELECT 
+    q.id AS QuestionID,
+    q.question AS QuestionText,
+    JSON_OBJECTAGG(a.answer, a.id) AS Answers,
+    q.answer AS AnswerId
+FROM
+    Questions q
+JOIN 
+    Quizs z ON q.quize_id = z.id
+JOIN
+    Answers a ON q.id = a.question_id
+JOIN
+    Answers b ON q.answer = b.id
+WHERE 
+    z.id = ${id}
+GROUP BY
+    q.id, q.question, q.answer;`;
+
+  try {
+    const data = await connection.promise().query(query);
+    res.status(202).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: err });
+  }
+});
+
+// Protected route example
+app.get("/protected", verifyToken, (req, res) => {
+  //res.status(200).json({ message: "valid", userId: req.body.id });
+});
+
+app.listen(5000, () => {
+  console.log("Server listening in http://localhost:5000");
+});
