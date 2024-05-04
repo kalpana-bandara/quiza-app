@@ -3,6 +3,7 @@ const app = express();
 import cors from "cors";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+const port = process.env.PORT || 3001;
 
 app.use(express.json());
 app.use(cors());
@@ -147,6 +148,6 @@ app.get("/protected", verifyToken, (req, res) => {
   //res.status(200).json({ message: "valid", userId: req.body.id });
 });
 
-app.listen(5000, () => {
-  console.log("Server listening in http://localhost:5000");
+app.listen(port, () => {
+  console.log(`Server listening in ${port}`);
 });
