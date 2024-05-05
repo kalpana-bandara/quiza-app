@@ -12,7 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 import mysql from "mysql2";
 
 // Secret key for JWT
-const JWT_SECRET = "your_secret_key"; // Replace with your secret key
+const JWT_SECRET = "quiza_kalpa_app"; // Replace with your secret key
 
 // connecting Database
 const connection = mysql.createPool({
@@ -114,11 +114,33 @@ app.post("/create-user", async (req, res) => {
   }
 });
 
+app.post("/get-quizlist", async (req, res) => {
+  const category_name = req.body.cat_name;
+
+  const query = `SELECT 
+            q.id AS quiz_id,
+	          q.quiz_name AS quiz_name,
+            q.description AS quiz_description
+          FROM 
+	          quizs q
+          JOIN
+            quize_category qc
+          ON
+            q.category_id = qc.id
+          WHERE
+            qc.category_name = '${category_name}'`;
+  try {
+    const data = await connection.promise().query(query);
+    res.status(202).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: err });
+  }
+});
+
 app.post("/get-quiz", async (req, res) => {
   const id = req.body.id;
 
-  const query = `
-    SELECT 
+  const query = `SELECT 
       q.id AS QuestionID,
       q.question AS QuestionText,
       CONCAT(
@@ -165,3 +187,4 @@ app.get("/protected", verifyToken, (req, res) => {
 app.listen(port, () => {
   console.log(`Server listening in ${port}`);
 });
+
