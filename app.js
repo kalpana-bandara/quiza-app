@@ -117,23 +117,24 @@ app.post("/create-user", async (req, res) => {
 app.post("/get-quiz", async (req, res) => {
   const id = req.body.id;
 
-  const query = `SELECT 
-    q.id AS QuestionID,
-    q.question AS QuestionText,
-    JSON_OBJECTAGG(a.answer, a.id) AS Answers,
-    q.answer AS AnswerId
-FROM
-    Questions q
-JOIN 
-    Quizs z ON q.quize_id = z.id
-JOIN
-    Answers a ON q.id = a.question_id
-JOIN
-    Answers b ON q.answer = b.id
-WHERE 
-    z.id = ${id}
-GROUP BY
-    q.id, q.question, q.answer;`;
+  const query = `
+    SELECT 
+      q.id AS QuestionID,
+      q.question AS QuestionText,
+      CONCAT('[', GROUP_CONCAT(JSON_OBJECT('answer', a.answer, 'id', a.id)), ']') AS Answers,
+      q.answer AS AnswerId
+    FROM
+      Questions q
+    JOIN 
+      Quizs z ON q.quize_id = z.id
+    JOIN
+      Answers a ON q.id = a.question_id
+    JOIN
+      Answers b ON q.answer = b.id
+    WHERE 
+      z.id = ${id}
+    GROUP BY
+      q.id, q.question, q.answer;`;
 
   try {
     const data = await connection.promise().query(query);
