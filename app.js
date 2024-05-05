@@ -121,7 +121,20 @@ app.post("/get-quiz", async (req, res) => {
     SELECT 
       q.id AS QuestionID,
       q.question AS QuestionText,
-      CONCAT('[', GROUP_CONCAT(CONCAT('{ "answer": "', a.answer, '", "id": ', a.id, '}')), ']') AS Answers,
+      CONCAT(
+        '{',
+        GROUP_CONCAT(
+          CONCAT(
+            '"', 
+            a.answer, 
+            '": "', 
+            a.id, 
+            '"'
+          )
+          SEPARATOR ','
+        ),
+        '}'
+      ) AS Answers,
       q.answer AS AnswerId
     FROM
       Questions q
