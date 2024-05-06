@@ -159,13 +159,13 @@ app.post("/get-quiz", async (req, res) => {
       ) AS Answers,
       q.answer AS AnswerId
     FROM
-      Questions q
+      questions q
     JOIN 
-      Quizs z ON q.quize_id = z.id
+      quizs z ON q.quize_id = z.id
     JOIN
-      Answers a ON q.id = a.question_id
+      answers a ON q.id = a.question_id
     JOIN
-      Answers b ON q.answer = b.id
+      answers b ON q.answer = b.id
     WHERE 
       z.id = ${id}
     GROUP BY
