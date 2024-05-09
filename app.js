@@ -16,10 +16,10 @@ const JWT_SECRET = "quiza_kalpa_app"; // Replace with your secret key
 
 // connecting Database
 const connection = mysql.createPool({
-  host: "sql6.freesqldatabase.com",
-  user: "sql6704057",
-  password: "NEdMXYQthm",
-  database: "sql6704057",
+  host: "kuisapp-db.cryue2wawy52.eu-north-1.rds.amazonaws.com",
+  user: "admin",
+  password: "be73VRvB6lbsnrrnoddT",
+  database: "quiza_app",
 });
 
 // Hash a password using SHA-256
