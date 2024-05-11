@@ -3,12 +3,24 @@ const app = express();
 import cors from "cors";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-const NodeCache = require("node-cache");
-const cache = new NodeCache();
 const port = process.env.PORT || 3001;
 
 app.use(express.json());
-app.use(cors());
+const allowedOrigins = ["https://kuisapp.onrender.com/"];
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = `This site ${origin} is not allowed to access the resource`;
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 
 import mysql from "mysql2";
@@ -175,14 +187,7 @@ app.post("/get-quiz", async (req, res) => {
 
   try {
     const data = await connection.promise().query(query);
-    const cachedResults = cache.get("quizData");
-
-    if (cachedResults) {
-      res.status(202).json({ cachedResults });
-    } else {
-      cache.set("quizData", data, 3600);
-      res.status(202).json({ data });
-    }
+    res.status(202).json({ data });
   } catch (err) {
     res.status(500).json({ message: err });
   }
