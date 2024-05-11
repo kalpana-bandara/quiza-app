@@ -3,6 +3,8 @@ const app = express();
 import cors from "cors";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+const NodeCache = require("node-cache");
+const cache = new NodeCache();
 const port = process.env.PORT || 3001;
 
 app.use(express.json());
@@ -173,7 +175,14 @@ app.post("/get-quiz", async (req, res) => {
 
   try {
     const data = await connection.promise().query(query);
-    res.status(202).json({ data });
+    const cachedResults = cache.get("quizData");
+
+    if (cachedResults) {
+      res.status(202).json({ cachedResults });
+    } else {
+      cache.set("quizData", data, 3600);
+      res.status(202).json({ data });
+    }
   } catch (err) {
     res.status(500).json({ message: err });
   }
@@ -187,4 +196,3 @@ app.get("/protected", verifyToken, (req, res) => {
 app.listen(port, () => {
   console.log(`Server listening in ${port}`);
 });
-
